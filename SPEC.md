@@ -37,7 +37,7 @@ Three consecutive `packed` days triggers the brain to serve `full` as the defaul
 
 ## Stack
 
-Next.js PWA on Vercel · Postgres in production / JSON files in local dev (single user) · Claude API (`claude-opus-5`) via a server route after each session, structured outputs so the brain's adjustments come back as validated JSON · simple passphrase gate (personal health data — not public, not multi-user).
+Next.js PWA on Vercel · Vercel Blob in production / JSON files in local dev (single user) · Claude API (`claude-opus-5`) via a server route after each session, structured outputs so the brain's adjustments come back as validated JSON · no passphrase (Eddie's explicit call 2026-08-15 — data is public-but-obscure; APP_PASSPHRASE support exists in code if he ever changes his mind).
 
 ## Out of scope for v0
 
