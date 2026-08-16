@@ -18,7 +18,9 @@ export async function POST(request) {
     finishedAt: new Date().toISOString(),
     dayType: body.dayType,
     flexibility: !!body.flexibility,
-    exercises: body.exercises, // [{id, name, sets: [bool...], reps, weight}]
+    startedAt: body.startedAt || null,
+    durationSec: body.durationSec || null,
+    exercises: body.exercises, // [{id, name, sets: [repsDone...], reps, weight, note?}]
     completion: body.completion, // 0-100 across all sets
     knee: body.knee, // 1-10
     reasons: body.reasons || {}, // movementId -> knee|time|too_hard

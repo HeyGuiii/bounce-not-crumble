@@ -1,22 +1,31 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 const todayStr = () =>
   new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
+const fmtClock = (sec) =>
+  `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+
+const videoUrl = (name) =>
+  `https://www.youtube.com/results?search_query=${encodeURIComponent(name + " proper form")}`;
+
 export default function App() {
   const [phase, setPhase] = useState("loading"); // loading|auth|serve|work|reflect|saving|done
   const [pass, setPass] = useState("");
-  const [data, setData] = useState(null); // /api/today payload
+  const [data, setData] = useState(null);
   const [dayType, setDayType] = useState(null);
   const [flex, setFlex] = useState(false);
-  const [work, setWork] = useState(null); // exercises w/ set-done state
+  const [work, setWork] = useState(null); // exercises: {..., done: [repsDone per set], note, showNote}
   const [knee, setKnee] = useState(null);
   const [reasons, setReasons] = useState({});
   const [dump, setDump] = useState("");
   const [result, setResult] = useState(null);
   const [chipFlash, setChipFlash] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(null);
+  const timerRef = useRef(null);
 
   const loadToday = useCallback(async (dt, fx) => {
     const params = new URLSearchParams();
@@ -32,6 +41,7 @@ export default function App() {
 
   useEffect(() => {
     loadToday();
+    return () => clearInterval(timerRef.current);
   }, [loadToday]);
 
   async function submitPass(e) {
@@ -49,30 +59,65 @@ export default function App() {
     setWork(
       data.plan.exercises.map((ex) => ({
         ...ex,
-        done: Array(ex.sets).fill(false),
+        done: Array(ex.sets).fill(0), // reps completed per set
+        note: "",
+        showNote: false,
       }))
+    );
+    startRef.current = Date.now();
+    setElapsed(0);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(
+      () => setElapsed(Math.round((Date.now() - startRef.current) / 1000)),
+      1000
     );
     setPhase("work");
   }
 
-  function tapSet(exIdx, setIdx) {
+  function setReps(exIdx, setIdx, reps) {
     setWork((w) =>
       w.map((ex, i) =>
         i === exIdx
-          ? { ...ex, done: ex.done.map((d, j) => (j === setIdx ? !d : d)) }
+          ? { ...ex, done: ex.done.map((d, j) => (j === setIdx ? reps : d)) }
           : ex
       )
     );
   }
 
-  const completion = work
-    ? Math.round(
-        (100 * work.reduce((a, ex) => a + ex.done.filter(Boolean).length, 0)) /
-          Math.max(1, work.reduce((a, ex) => a + ex.done.length, 0))
-      )
-    : 0;
+  // Fast path: tap the set label = full target reps (tap again to clear).
+  function tapSet(exIdx, setIdx) {
+    const ex = work[exIdx];
+    setReps(exIdx, setIdx, ex.done[setIdx] >= ex.reps ? 0 : ex.reps);
+  }
 
-  const dropped = work ? work.filter((ex) => ex.done.some((d) => !d)) : [];
+  function toggleNote(exIdx) {
+    setWork((w) =>
+      w.map((ex, i) => (i === exIdx ? { ...ex, showNote: !ex.showNote } : ex))
+    );
+  }
+  function setNote(exIdx, note) {
+    setWork((w) => w.map((ex, i) => (i === exIdx ? { ...ex, note } : ex)));
+  }
+
+  const totals = work
+    ? work.reduce(
+        (a, ex) => ({
+          done: a.done + ex.done.reduce((x, y) => x + y, 0),
+          target: a.target + ex.sets * ex.reps,
+        }),
+        { done: 0, target: 0 }
+      )
+    : { done: 0, target: 1 };
+  const completion = Math.round((100 * totals.done) / Math.max(1, totals.target));
+
+  const dropped = work
+    ? work.filter((ex) => ex.done.reduce((x, y) => x + y, 0) < ex.sets * ex.reps)
+    : [];
+
+  function finishWorkout() {
+    clearInterval(timerRef.current);
+    setPhase("reflect");
+  }
 
   async function saveSession() {
     setPhase("saving");
@@ -82,8 +127,10 @@ export default function App() {
       body: JSON.stringify({
         dayType,
         flexibility: flex,
-        exercises: work.map(({ id, name, done, reps, weight }) => ({
-          id, name, sets: done, reps, weight,
+        startedAt: new Date(startRef.current).toISOString(),
+        durationSec: elapsed,
+        exercises: work.map(({ id, name, done, reps, weight, note }) => ({
+          id, name, sets: done, reps, weight, note: note || undefined,
         })),
         completion,
         knee,
@@ -221,6 +268,7 @@ export default function App() {
           <button className={`chip ${chipFlash === "tennis" ? "flash" : ""}`} onClick={() => logActivity("tennis")}>
             {chipFlash === "tennis" ? "Logged ✓" : "🎾 Played tennis"}
           </button>
+          <a className="chip" href="/archive">📖 Archive</a>
         </div>
       </div>
     );
@@ -229,7 +277,10 @@ export default function App() {
     return (
       <div className="app">
         <div className="brand">Bounce not Crumble</div>
-        <h1>{dayType === "packed" ? "Packed session" : "Full session"}</h1>
+        <div className="work-head">
+          <h1>{dayType === "packed" ? "Packed session" : "Full session"}</h1>
+          <span className="timer">{fmtClock(elapsed)}</span>
+        </div>
         <div className="meter"><div style={{ width: `${completion}%` }} /></div>
 
         {work.map((ex, i) => (
@@ -237,17 +288,50 @@ export default function App() {
             <div className="ex-head">
               <span className="ex-name">{ex.name}</span>
               <span className="ex-dose">
-                {ex.reps} {ex.unit}{ex.weight ? ` · ${ex.weight} lb` : ""}
+                {ex.sets} × {ex.reps} {ex.unit}{ex.weight ? ` · ${ex.weight} lb` : ""}
               </span>
             </div>
-            <div className="ex-cues">{ex.cues}</div>
-            <div className="sets">
-              {ex.done.map((d, j) => (
-                <button key={j} className={`set ${d ? "done" : ""}`} onClick={() => tapSet(i, j)}>
-                  {d ? "✓" : `Set ${j + 1}`}
-                </button>
-              ))}
+            <div className="ex-cues">
+              {ex.cues}{" "}
+              <a className="howto" href={videoUrl(ex.name)} target="_blank" rel="noreferrer">
+                ▶ how-to
+              </a>
             </div>
+
+            {ex.done.map((repsDone, j) => (
+              <div className="set-row" key={j}>
+                <button
+                  className={`set-chip ${repsDone >= ex.reps ? "done" : ""}`}
+                  onClick={() => tapSet(i, j)}
+                >
+                  {repsDone >= ex.reps ? "✓" : `Set ${j + 1}`}
+                </button>
+                <input
+                  type="range"
+                  min={0}
+                  max={ex.reps}
+                  value={repsDone}
+                  onChange={(e) => setReps(i, j, Number(e.target.value))}
+                />
+                <span className={`set-count ${repsDone >= ex.reps ? "full" : ""}`}>
+                  {repsDone}/{ex.reps}
+                </span>
+              </div>
+            ))}
+
+            {ex.showNote ? (
+              <textarea
+                className="ex-note"
+                placeholder={`Notes on ${ex.name.toLowerCase()}…`}
+                value={ex.note}
+                onChange={(e) => setNote(i, e.target.value)}
+                autoFocus
+              />
+            ) : (
+              <button className="note-toggle" onClick={() => toggleNote(i)}>
+                ＋ note
+              </button>
+            )}
           </div>
         ))}
 
@@ -262,7 +346,7 @@ export default function App() {
           </div>
         )}
 
-        <button className="btn" onClick={() => setPhase("reflect")}>Done — reflect</button>
+        <button className="btn" onClick={finishWorkout}>Done — reflect</button>
       </div>
     );
 
@@ -271,7 +355,9 @@ export default function App() {
       <div className="app">
         <div className="brand">Bounce not Crumble</div>
         <h1>How&apos;d it go?</h1>
-        <div className="date">Completion: {completion}%</div>
+        <div className="date">
+          Completion: {completion}% · {fmtClock(elapsed)}
+        </div>
 
         <div className="card">
           <div className="card-label">Knee, 1–10 (10 = great)</div>
@@ -328,7 +414,7 @@ export default function App() {
       <div className="app">
         <div className="brand">Bounce not Crumble</div>
         <h1>Bounced. 💪</h1>
-        <div className="date">{todayStr()}</div>
+        <div className="date">{todayStr()} · {fmtClock(elapsed)}</div>
         <div className="card obs">
           <div className="card-label">The brain</div>
           <p>{result?.observation}</p>
@@ -344,7 +430,8 @@ export default function App() {
             </div>
           </div>
         ))}
-        <p className="dim">See you tomorrow. Showing up is the whole ballgame.</p>
+        <a className="chip" href="/archive">📖 See it in the archive</a>
+        <p className="dim" style={{ marginTop: 14 }}>See you tomorrow. Showing up is the whole ballgame.</p>
       </div>
     );
 
