@@ -119,6 +119,18 @@ export default function App() {
     setPhase("reflect");
   }
 
+  // Accidental "Done" tap — go back and keep working; the timer resumes
+  // from the true start time.
+  function backToWorkout() {
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(
+      () => setElapsed(Math.round((Date.now() - startRef.current) / 1000)),
+      1000
+    );
+    setElapsed(Math.round((Date.now() - startRef.current) / 1000));
+    setPhase("work");
+  }
+
   async function saveSession() {
     setPhase("saving");
     const res = await fetch("/api/session", {
@@ -153,13 +165,45 @@ export default function App() {
     setTimeout(() => setChipFlash(null), 1500);
   }
 
+  const [decided, setDecided] = useState({}); // proposalId -> "accepted"|"declined"|"error"
+
   async function decideProposal(id, action) {
-    await fetch("/api/proposal", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action }),
-    });
-    setData((d) => ({ ...d, proposals: d.proposals.filter((p) => p.id !== id) }));
+    try {
+      const res = await fetch("/api/proposal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      setDecided((d) => ({ ...d, [id]: action }));
+    } catch {
+      setDecided((d) => ({ ...d, [id]: "error" }));
+    }
+  }
+
+  function proposalCard(p) {
+    const verdict = decided[p.id];
+    return (
+      <div className="card" key={p.id}>
+        <div className="card-label">The brain proposes</div>
+        <p>{p.text}</p>
+        {verdict === "accepted" && (
+          <p className="verdict ok">✓ Accepted — the brain will build this in starting next session.</p>
+        )}
+        {verdict === "declined" && (
+          <p className="verdict">✗ Declined — the brain will drop it.</p>
+        )}
+        {verdict === "error" && (
+          <p className="verdict err">Couldn&apos;t save that — check your connection and tap again.</p>
+        )}
+        {(!verdict || verdict === "error") && (
+          <div className="proposal-actions">
+            <button className="btn small" onClick={() => decideProposal(p.id, "accepted")}>Accept</button>
+            <button className="btn small ghost" onClick={() => decideProposal(p.id, "declined")}>Decline</button>
+          </div>
+        )}
+      </div>
+    );
   }
 
   // ── Screens ─────────────────────────────────────────────────
@@ -206,16 +250,7 @@ export default function App() {
           </div>
         )}
 
-        {data.proposals.map((p) => (
-          <div className="card" key={p.id}>
-            <div className="card-label">The brain proposes</div>
-            <p>{p.text}</p>
-            <div className="proposal-actions">
-              <button className="btn small" onClick={() => decideProposal(p.id, "accepted")}>Accept</button>
-              <button className="btn small ghost" onClick={() => decideProposal(p.id, "declined")}>Decline</button>
-            </div>
-          </div>
-        ))}
+        {data.proposals.map(proposalCard)}
 
         <div className="toggle-row">
           <button
@@ -399,6 +434,9 @@ export default function App() {
         <button className="btn" disabled={knee === null} onClick={saveSession}>
           Save session
         </button>
+        <button className="btn ghost" onClick={backToWorkout}>
+          ← Back to the workout
+        </button>
       </div>
     );
 
@@ -420,16 +458,7 @@ export default function App() {
           <p>{result?.observation}</p>
           {result?.changed && <div className="changed">↻ {result.changed}</div>}
         </div>
-        {(result?.proposals || []).map((p) => (
-          <div className="card" key={p.id}>
-            <div className="card-label">The brain proposes</div>
-            <p>{p.text}</p>
-            <div className="proposal-actions">
-              <button className="btn small" onClick={() => decideProposal(p.id, "accepted")}>Accept</button>
-              <button className="btn small ghost" onClick={() => decideProposal(p.id, "declined")}>Decline</button>
-            </div>
-          </div>
-        ))}
+        {(result?.proposals || []).map(proposalCard)}
         <a className="chip" href="/archive">📖 See it in the archive</a>
         <p className="dim" style={{ marginTop: 14 }}>See you tomorrow. Showing up is the whole ballgame.</p>
       </div>

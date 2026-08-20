@@ -17,3 +17,9 @@
 - Eddie did Workout #1 for real: full session, 100% completion, knee 10.
 - First-workout feedback round shipped (flow/structure preserved per his explicit ask): work screen now shows full dose (sets x reps); per-set rep SLIDERS (tap set label = fast-path full reps); "how-to" YouTube link per exercise; optional per-exercise notes drill-down; session timer (starts on Start, stops at reflect; duration stored + fed to brain with packed ~20 / full ~35-40 targets); Archive page (/archive) with full history, durations, per-set numbers, notes, dumps, and brain observations per session.
 - Session schema: sets now reps-per-set numbers (was booleans); archive renders both. Deployed; Workout #1 data verified intact in prod.
+
+## 2026-08-20
+- Feedback round 2: back button on reflect screen (timer resumes from true start); proposal Accept/Decline now shows an inline verdict confirmation (and an error + retry state on network failure).
+- BUG (Eddie-reported): his accept on the 7-movement proposal recorded as declined. Flipped to accepted in prod state on his word, with an audit note on the proposal.
+- BUG (found while investigating): proposal decisions were never fed to the brain - accepts/declines had no effect. Brain prompt now carries proposal history with statuses (accepted = mandate, declined = boundary, pending = wait).
+- BUG (found while investigating): engine rejected brain movement lists that didn't exactly match default length - the brain's 7-movement full session was being silently dropped. Engine now allows packed 3-5 / full 5-8, all other gates unchanged. Verified: prod serves the 7-movement plan.

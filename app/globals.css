@@ -208,6 +208,10 @@ textarea { min-height: 96px; resize: vertical; }
 .chip.flash { border-color: var(--accent); color: var(--accent); }
 
 .proposal-actions { display: flex; gap: 8px; margin-top: 10px; }
+.verdict { margin-top: 10px; font-size: 14px; color: var(--ink-dim); }
+.verdict.ok { color: var(--accent); font-weight: 600; }
+.verdict.err { color: var(--danger); font-weight: 600; }
+.btn.ghost + .btn.ghost, .btn + .btn.ghost { margin-top: 10px; }
 .section-gap { height: 10px; }
 .dim { color: var(--ink-dim); font-size: 14px; line-height: 1.5; }
 .spin { text-align: center; color: var(--ink-dim); padding: 30px 0; font-size: 15px; }
