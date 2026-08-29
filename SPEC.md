@@ -11,6 +11,7 @@
 | Vehicle | PWA on Vercel, added to home screen (HoneyDu pattern) | 2026-08-15 |
 | Brain authority | **Dose free, rules approved.** Brain adjusts sessions freely (load, reps, swaps, packed-day dose) with a one-line "what I changed and why." Structural changes (progression rules, new movement patterns, override policy) are proposals Eddie accepts/declines | 2026-08-15 |
 | Dump storage | Server-side DB (falls out of vehicle) — brain reads months of history | 2026-08-15 |
+| Secondary goal | **Glute development** woven into existing programming — never a separate workout. Glute max (upper emphasis), glute med, hip extension, single-leg control. 2-4 glute-tagged movements/week inside existing sessions, minimum effective dose, progressive overload. Library gained hip thrust, single-leg hip thrust, Bulgarian split squat (high knee load — gated), side-lying abduction; direct glute drivers tagged `glutes: true`. Primary goal (ACL/tennis) always wins conflicts | 2026-08-29 |
 
 ## Proposals baked into v0 (Eddie can overturn any of these in conversation)
 

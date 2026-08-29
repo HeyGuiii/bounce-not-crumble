@@ -23,3 +23,6 @@
 - BUG (Eddie-reported): his accept on the 7-movement proposal recorded as declined. Flipped to accepted in prod state on his word, with an audit note on the proposal.
 - BUG (found while investigating): proposal decisions were never fed to the brain - accepts/declines had no effect. Brain prompt now carries proposal history with statuses (accepted = mandate, declined = boundary, pending = wait).
 - BUG (found while investigating): engine rejected brain movement lists that didn't exactly match default length - the brain's 7-movement full session was being silently dropped. Engine now allows packed 3-5 / full 5-8, all other gates unchanged. Verified: prod serves the 7-movement plan.
+
+## 2026-08-29
+- Eddie: daily streak since Denver ("really moved atoms"). Secondary goal added on his word: GLUTE DEVELOPMENT woven into existing programming, never a separate workout. Library +4: hip thrust (flagship), single-leg hip thrust, Bulgarian split squat (high knee load, gated like step-up), side-lying abduction; direct glute drivers tagged glutes:true (visible in brain digest). Brain charter: 2-4 glute movements/week inside existing sessions, minimum effective dose, upper-glute + glute-med emphasis, progressive overload, primary goal (ACL/tennis) wins conflicts. SPEC updated. Deployed; serve verified.
