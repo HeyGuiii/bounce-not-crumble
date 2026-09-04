@@ -26,3 +26,6 @@
 
 ## 2026-08-29
 - Eddie: daily streak since Denver ("really moved atoms"). Secondary goal added on his word: GLUTE DEVELOPMENT woven into existing programming, never a separate workout. Library +4: hip thrust (flagship), single-leg hip thrust, Bulgarian split squat (high knee load, gated like step-up), side-lying abduction; direct glute drivers tagged glutes:true (visible in brain digest). Brain charter: 2-4 glute movements/week inside existing sessions, minimum effective dose, upper-glute + glute-med emphasis, progressive overload, primary goal (ACL/tennis) wins conflicts. SPEC updated. Deployed; serve verified.
+
+## 2026-09-04
+- Eddie (from Truckee): wants "Meatware" mode - zero-equipment days serve bodyweight equivalents preserving the day's focus. Moratorium still on (1 more day), so today = research + decisions only, NO code. His calls: strictly bodyweight (no improvised load), one-day toggle (resets like packed/full), skip rows when traveling (prone Y-T-W / snow angels instead). Full substitution map for all 31 movements + build sketch captured in MEATWARE.md. Build is a transcription job once the moratorium lifts (~09-05), on his word.
