@@ -57,6 +57,7 @@ export default function Archive() {
           >
             <span className="ex-name" style={{ fontSize: 16 }}>
               {fmtDate(s.date)} — {s.dayType === "packed" ? "Packed" : "Full"}
+              {s.meatware ? " 🥩" : ""}
               {s.flexibility ? " +mobility" : ""}
             </span>
             <span className="ex-dose">

@@ -17,6 +17,7 @@ export default function App() {
   const [data, setData] = useState(null);
   const [dayType, setDayType] = useState(null);
   const [flex, setFlex] = useState(false);
+  const [mw, setMw] = useState(false); // Meatware: no-equipment day (resets daily)
   const [work, setWork] = useState(null); // exercises: {..., done: [repsDone per set], note, showNote}
   const [knee, setKnee] = useState(null);
   const [reasons, setReasons] = useState({});
@@ -27,10 +28,11 @@ export default function App() {
   const startRef = useRef(null);
   const timerRef = useRef(null);
 
-  const loadToday = useCallback(async (dt, fx) => {
+  const loadToday = useCallback(async (dt, fx, meat) => {
     const params = new URLSearchParams();
     if (dt) params.set("dayType", dt);
     if (fx) params.set("flex", "1");
+    if (meat) params.set("meatware", "1");
     const res = await fetch(`/api/today?${params}`);
     if (res.status === 401) return setPhase("auth");
     const payload = await res.json();
@@ -139,6 +141,7 @@ export default function App() {
       body: JSON.stringify({
         dayType,
         flexibility: flex,
+        meatware: mw,
         startedAt: new Date(startRef.current).toISOString(),
         durationSec: elapsed,
         exercises: work.map(({ id, name, done, reps, weight, note }) => ({
@@ -255,13 +258,13 @@ export default function App() {
         <div className="toggle-row">
           <button
             className={`toggle ${dayType === "packed" ? "on" : ""}`}
-            onClick={() => loadToday("packed", flex)}
+            onClick={() => loadToday("packed", flex, mw)}
           >
             Packed<small>~20 min</small>
           </button>
           <button
             className={`toggle ${dayType === "full" ? "on" : ""}`}
-            onClick={() => loadToday("full", flex)}
+            onClick={() => loadToday("full", flex, mw)}
           >
             Full<small>~35–40 min</small>
           </button>
@@ -269,9 +272,15 @@ export default function App() {
         <div className="toggle-row">
           <button
             className={`toggle ${flex ? "on" : ""}`}
-            onClick={() => { setFlex(!flex); loadToday(dayType, !flex); }}
+            onClick={() => { setFlex(!flex); loadToday(dayType, !flex, mw); }}
           >
             {flex ? "Mobility block: on" : "Mobility today?"}
+          </button>
+          <button
+            className={`toggle ${mw ? "on" : ""}`}
+            onClick={() => { setMw(!mw); loadToday(dayType, flex, !mw); }}
+          >
+            {mw ? "🥩 Meatware: on" : "🥩 No equipment?"}<small>bodyweight only</small>
           </button>
         </div>
 
@@ -313,7 +322,7 @@ export default function App() {
       <div className="app">
         <div className="brand">Bounce not Crumble</div>
         <div className="work-head">
-          <h1>{dayType === "packed" ? "Packed session" : "Full session"}</h1>
+          <h1>{mw ? "🥩 " : ""}{dayType === "packed" ? "Packed session" : "Full session"}</h1>
           <span className="timer">{fmtClock(elapsed)}</span>
         </div>
         <div className="meter"><div style={{ width: `${completion}%` }} /></div>

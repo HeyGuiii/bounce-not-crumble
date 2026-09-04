@@ -15,8 +15,9 @@ export async function GET(request) {
   const suggestion = suggestDayType(state, recentSessions);
   const dayType = url.searchParams.get("dayType") || suggestion.dayType;
   const flexibility = url.searchParams.get("flex") === "1";
+  const meatware = url.searchParams.get("meatware") === "1";
 
-  const plan = generateSession({ dayType, flexibility, state, recentSessions });
+  const plan = generateSession({ dayType, flexibility, meatware, state, recentSessions });
 
   const doneToday = recentSessions.some((s) => s.date === localDate());
 
