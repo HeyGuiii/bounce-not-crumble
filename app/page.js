@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { TEST_ITEMS } from "../lib/tests.js";
 
 const todayStr = () =>
   new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -11,8 +12,14 @@ const fmtClock = (sec) =>
 const videoUrl = (name) =>
   `https://www.youtube.com/results?search_query=${encodeURIComponent(name + " proper form")}`;
 
+const SIDE_OPTIONS = [
+  { v: "solid", label: "Solid" },
+  { v: "off", label: "A little off" },
+  { v: "weak", label: "Weak" },
+];
+
 export default function App() {
-  const [phase, setPhase] = useState("loading"); // loading|auth|serve|work|reflect|saving|done
+  const [phase, setPhase] = useState("loading"); // loading|auth|serve|work|reflect|saving|done|test|testdone
   const [pass, setPass] = useState("");
   const [data, setData] = useState(null);
   const [dayType, setDayType] = useState(null);
@@ -21,12 +28,23 @@ export default function App() {
   const [work, setWork] = useState(null); // exercises: {..., done: [repsDone per set], note, showNote}
   const [knee, setKnee] = useState(null);
   const [reasons, setReasons] = useState({});
+  const [sides, setSides] = useState({}); // movementId -> { left, right }
   const [dump, setDump] = useState("");
   const [result, setResult] = useState(null);
   const [chipFlash, setChipFlash] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(null);
   const timerRef = useRef(null);
+
+  // Running log form
+  const [runOpen, setRunOpen] = useState(false);
+  const [runForm, setRunForm] = useState({ minutes: "", miles: "", kneeAfter: "" });
+  const [runNote, setRunNote] = useState(null);
+
+  // Test day
+  const [testVals, setTestVals] = useState({});
+  const [testNote, setTestNote] = useState("");
+  const [testResult, setTestResult] = useState(null);
 
   const loadToday = useCallback(async (dt, fx, meat) => {
     const params = new URLSearchParams();
@@ -57,6 +75,14 @@ export default function App() {
     else alert("Not it. Try again.");
   }
 
+  function startTimer() {
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(
+      () => setElapsed(Math.round((Date.now() - startRef.current) / 1000)),
+      1000
+    );
+  }
+
   function startWorkout() {
     setWork(
       data.plan.exercises.map((ex) => ({
@@ -68,12 +94,18 @@ export default function App() {
     );
     startRef.current = Date.now();
     setElapsed(0);
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(
-      () => setElapsed(Math.round((Date.now() - startRef.current) / 1000)),
-      1000
-    );
+    startTimer();
     setPhase("work");
+  }
+
+  function startTest() {
+    startRef.current = Date.now();
+    setElapsed(0);
+    startTimer();
+    setTestVals({});
+    setTestNote("");
+    setKnee(null);
+    setPhase("test");
   }
 
   function setReps(exIdx, setIdx, reps) {
@@ -101,6 +133,13 @@ export default function App() {
     setWork((w) => w.map((ex, i) => (i === exIdx ? { ...ex, note } : ex)));
   }
 
+  function setSide(id, which, v) {
+    setSides((s) => {
+      const cur = s[id] || {};
+      return { ...s, [id]: { ...cur, [which]: cur[which] === v ? undefined : v } };
+    });
+  }
+
   const totals = work
     ? work.reduce(
         (a, ex) => ({
@@ -115,6 +154,7 @@ export default function App() {
   const dropped = work
     ? work.filter((ex) => ex.done.reduce((x, y) => x + y, 0) < ex.sets * ex.reps)
     : [];
+  const perSideMoves = work ? work.filter((ex) => ex.perSide) : [];
 
   function finishWorkout() {
     clearInterval(timerRef.current);
@@ -124,11 +164,7 @@ export default function App() {
   // Accidental "Done" tap — go back and keep working; the timer resumes
   // from the true start time.
   function backToWorkout() {
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(
-      () => setElapsed(Math.round((Date.now() - startRef.current) / 1000)),
-      1000
-    );
+    startTimer();
     setElapsed(Math.round((Date.now() - startRef.current) / 1000));
     setPhase("work");
   }
@@ -142,6 +178,7 @@ export default function App() {
         dayType,
         flexibility: flex,
         meatware: mw,
+        block: data.plan.block,
         startedAt: new Date(startRef.current).toISOString(),
         durationSec: elapsed,
         exercises: work.map(({ id, name, done, reps, weight, note }) => ({
@@ -150,6 +187,7 @@ export default function App() {
         completion,
         knee,
         reasons,
+        sides,
         dump,
       }),
     });
@@ -158,14 +196,53 @@ export default function App() {
     setPhase("done");
   }
 
-  async function logActivity(kind) {
-    await fetch("/api/activity", {
+  async function saveTest() {
+    clearInterval(timerRef.current);
+    setPhase("saving");
+    const res = await fetch("/api/test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind }),
+      body: JSON.stringify({
+        values: testVals,
+        knee,
+        note: testNote,
+        startedAt: new Date(startRef.current).toISOString(),
+        durationSec: elapsed,
+      }),
     });
+    const payload = await res.json();
+    setTestResult(payload);
+    setPhase("testdone");
+  }
+
+  async function logActivity(kind, extra = {}) {
+    const res = await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, ...extra }),
+    });
+    const payload = await res.json().catch(() => ({}));
     setChipFlash(kind);
     setTimeout(() => setChipFlash(null), 1500);
+    if (payload.running) setData((d) => ({ ...d, running: payload.running }));
+    if (payload.note) setRunNote(payload.note);
+  }
+
+  async function submitRun(e) {
+    e.preventDefault();
+    await logActivity("run", runForm);
+    setRunOpen(false);
+    setRunForm({ minutes: "", miles: "", kneeAfter: "" });
+  }
+
+  async function adjustStage(action) {
+    const res = await fetch("/api/activity", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (payload.running) setData((d) => ({ ...d, running: payload.running }));
   }
 
   const [decided, setDecided] = useState({}); // proposalId -> "accepted"|"declined"|"error"
@@ -209,6 +286,9 @@ export default function App() {
     );
   }
 
+  const doseText = (ex) =>
+    `${ex.sets}×${ex.reps} ${ex.unit}${ex.weight ? ` · ${ex.weight} lb` : ""}`;
+
   // ── Screens ─────────────────────────────────────────────────
   if (phase === "loading") return <div className="app"><div className="spin">Loading…</div></div>;
 
@@ -231,7 +311,8 @@ export default function App() {
       </div>
     );
 
-  if (phase === "serve")
+  if (phase === "serve") {
+    const running = data.running;
     return (
       <div className="app">
         <div className="brand">Bounce not Crumble</div>
@@ -255,18 +336,42 @@ export default function App() {
 
         {data.proposals.map(proposalCard)}
 
+        {data.block && (
+          <div className="card block">
+            <div className="ex-head">
+              <span className="block-name">Block {data.block.key} · {data.block.name}</span>
+              <span className="block-day">day {data.block.day} of {data.block.of}</span>
+            </div>
+            <div className="changed" style={{ marginTop: 4 }}>{data.block.tagline}</div>
+          </div>
+        )}
+
+        {data.test?.due && (
+          <div className="card note">
+            <div className="card-label">Test day</div>
+            <p>
+              {data.test.last
+                ? `It's been ${data.test.daysSince} days since your last test. Bodyweight, hops, balance, push-ups, tib raises, wall sit — about 15 minutes, and it counts as today's workout.`
+                : "No starting line yet. Bodyweight, single-leg hops, eyes-closed balance, max push-ups, tib raises, wall sit — about 15 minutes, and it counts as today's workout. Tape measure and a wall."}
+            </p>
+            <div className="inline-actions">
+              <button className="btn small" onClick={startTest}>Do the test day instead</button>
+            </div>
+          </div>
+        )}
+
         <div className="toggle-row">
           <button
             className={`toggle ${dayType === "packed" ? "on" : ""}`}
             onClick={() => loadToday("packed", flex, mw)}
           >
-            Packed<small>~20 min</small>
+            Packed<small>~15 min</small>
           </button>
           <button
             className={`toggle ${dayType === "full" ? "on" : ""}`}
             onClick={() => loadToday("full", flex, mw)}
           >
-            Full<small>~35–40 min</small>
+            Full<small>~25 min</small>
           </button>
         </div>
         <div className="toggle-row">
@@ -287,13 +392,15 @@ export default function App() {
         <div className="card">
           <div className="card-label">
             {data.plan.format === "circuit" ? "Circuit — cycle through" : "Straight sets"}
+            {data.plan.afterRun ? " · day after a run: nothing high-knee" : ""}
           </div>
           {data.plan.exercises.map((ex) => (
-            <div className="ex-head" key={ex.id} style={{ marginBottom: 6 }}>
-              <span className="ex-name" style={{ fontSize: 15 }}>{ex.name}</span>
-              <span className="ex-dose">
-                {ex.sets}×{ex.reps} {ex.unit}{ex.weight ? ` · ${ex.weight} lb` : ""}
-              </span>
+            <div key={ex.id} style={{ marginBottom: 8 }}>
+              <div className="ex-head">
+                <span className="ex-name" style={{ fontSize: 15 }}>{ex.name}</span>
+                <span className="ex-dose">{doseText(ex)}</span>
+              </div>
+              {ex.how && <span className={`how ${ex.snapped ? "snapped" : ""}`}>{ex.snapped ? "snapped to your gear: " : ""}{ex.how}</span>}
             </div>
           ))}
           {data.plan.mobility.length > 0 && (
@@ -305,17 +412,47 @@ export default function App() {
           {data.doneToday ? "Go again (already done today)" : "Start"}
         </button>
 
+        {running && (
+          <div className="card" style={{ marginTop: 14 }}>
+            <div className="ex-head">
+              <span className="card-label" style={{ marginBottom: 0 }}>Running track · stage {running.stage}</span>
+              <span className="ex-dose">{running.cleanAtStage}/{running.needed} clean</span>
+            </div>
+            <p style={{ marginTop: 6 }}>{running.prescription}</p>
+            {running.caution && <div className="changed" style={{ color: "var(--warn)" }}>{running.caution}</div>}
+            {runNote && <div className="verdict ok">{runNote}</div>}
+            {!runOpen ? (
+              <div className="inline-actions">
+                <button className="btn small" onClick={() => setRunOpen(true)}>🏃 Log a run</button>
+                <button className="btn small ghost" onClick={() => adjustStage("bump")}>I&apos;m past this stage</button>
+                {running.stage > 1 && <button className="btn small ghost" onClick={() => adjustStage("back")}>Step back</button>}
+              </div>
+            ) : (
+              <form onSubmit={submitRun} style={{ marginTop: 10 }}>
+                <div className="field-row">
+                  <label>Minutes<input type="number" inputMode="decimal" value={runForm.minutes} onChange={(e) => setRunForm({ ...runForm, minutes: e.target.value })} /></label>
+                  <label>Miles<input type="number" inputMode="decimal" step="0.1" value={runForm.miles} onChange={(e) => setRunForm({ ...runForm, miles: e.target.value })} /></label>
+                  <label>Knee after (1–10)<input type="number" inputMode="numeric" min={1} max={10} value={runForm.kneeAfter} onChange={(e) => setRunForm({ ...runForm, kneeAfter: e.target.value })} /></label>
+                </div>
+                <div className="inline-actions">
+                  <button className="btn small" type="submit">Save run</button>
+                  <button className="btn small ghost" type="button" onClick={() => setRunOpen(false)}>Cancel</button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
         <div className="chips">
-          <button className={`chip ${chipFlash === "run" ? "flash" : ""}`} onClick={() => logActivity("run")}>
-            {chipFlash === "run" ? "Logged ✓" : "🏃 Ran today"}
-          </button>
           <button className={`chip ${chipFlash === "tennis" ? "flash" : ""}`} onClick={() => logActivity("tennis")}>
             {chipFlash === "tennis" ? "Logged ✓" : "🎾 Played tennis"}
           </button>
+          <a className="chip" href="/progress">📈 Progress</a>
           <a className="chip" href="/archive">📖 Archive</a>
         </div>
       </div>
     );
+  }
 
   if (phase === "work")
     return (
@@ -335,6 +472,8 @@ export default function App() {
                 {ex.sets} × {ex.reps} {ex.unit}{ex.weight ? ` · ${ex.weight} lb` : ""}
               </span>
             </div>
+            {ex.how && <span className={`how ${ex.snapped ? "snapped" : ""}`} style={{ marginBottom: 6 }}>{ex.how}</span>}
+            {ex.tempo && <div className="tempo">⏱ {ex.tempo}</div>}
             <div className="ex-cues">
               {ex.cues}{" "}
               <a className="howto" href={videoUrl(ex.name)} target="_blank" rel="noreferrer">
@@ -431,6 +570,31 @@ export default function App() {
           </div>
         ))}
 
+        {perSideMoves.length > 0 && (
+          <div className="card">
+            <div className="card-label">Left vs right (optional — skip what felt even)</div>
+            {perSideMoves.map((ex) => (
+              <div className="side-block" key={ex.id}>
+                <div className="side-name">{ex.name}</div>
+                {["left", "right"].map((which) => (
+                  <div className="side-row" key={which}>
+                    <span className="side-label">{which === "left" ? "L" : "R"}</span>
+                    {SIDE_OPTIONS.map((o) => (
+                      <button
+                        key={o.v}
+                        className={`side-btn ${sides[ex.id]?.[which] === o.v ? `on ${o.v}` : ""}`}
+                        onClick={() => setSide(ex.id, which, o.v)}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="card">
           <div className="card-label">Anything else? (optional — dictate it)</div>
           <textarea
@@ -449,10 +613,84 @@ export default function App() {
       </div>
     );
 
+  if (phase === "test")
+    return (
+      <div className="app">
+        <div className="brand">Bounce not Crumble</div>
+        <div className="work-head">
+          <h1>Test day</h1>
+          <span className="timer">{fmtClock(elapsed)}</span>
+        </div>
+        <div className="date">Warm up with 60 backward steps and 20 tib raises first. Best effort, honest numbers.</div>
+
+        <div className="card">
+          {TEST_ITEMS.map((item) => (
+            <div className="test-item" key={item.id}>
+              <label style={{ fontSize: 14, fontWeight: 600 }}>
+                {item.label} <span className="dim" style={{ fontWeight: 400 }}>({item.unit}{item.optional ? ", optional" : ""})</span>
+                <input
+                  type={item.text ? "text" : "number"}
+                  inputMode={item.text ? "text" : "decimal"}
+                  placeholder={item.text ? "e.g. 9:30" : ""}
+                  value={testVals[item.id] ?? ""}
+                  onChange={(e) => setTestVals({ ...testVals, [item.id]: e.target.value })}
+                />
+              </label>
+              <div className="hint">{item.hint}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="card">
+          <div className="card-label">Knee after, 1–10</div>
+          <div className="knee-row">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+              <button key={n} className={`knee ${knee === n ? "on" : ""}`} onClick={() => setKnee(n)}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-label">Notes (optional)</div>
+          <textarea value={testNote} onChange={(e) => setTestNote(e.target.value)} placeholder="Which side felt off, what surprised you…" />
+        </div>
+
+        <button
+          className="btn"
+          disabled={knee === null || !TEST_ITEMS.some((t) => !t.optional && testVals[t.id] !== undefined && testVals[t.id] !== "")}
+          onClick={saveTest}
+        >
+          Save test day
+        </button>
+        <button className="btn ghost" onClick={() => { clearInterval(timerRef.current); setPhase("serve"); }}>
+          ← Back to today&apos;s workout
+        </button>
+      </div>
+    );
+
   if (phase === "saving")
     return (
       <div className="app">
         <div className="spin">Saved. The brain is reading your session…</div>
+      </div>
+    );
+
+  if (phase === "testdone")
+    return (
+      <div className="app">
+        <div className="brand">Bounce not Crumble</div>
+        <h1>Starting line set. 📏</h1>
+        <div className="date">{todayStr()} · {fmtClock(elapsed)}</div>
+        <div className="card obs">
+          <div className="card-label">The brain</div>
+          <p>{testResult?.observation}</p>
+        </div>
+        <div className="chips">
+          <a className="chip" href="/progress">📈 See it on the progress page</a>
+        </div>
+        <p className="dim" style={{ marginTop: 14 }}>Next test in about four weeks. The app will ask.</p>
       </div>
     );
 
@@ -468,7 +706,10 @@ export default function App() {
           {result?.changed && <div className="changed">↻ {result.changed}</div>}
         </div>
         {(result?.proposals || []).map(proposalCard)}
-        <a className="chip" href="/archive">📖 See it in the archive</a>
+        <div className="chips">
+          <a className="chip" href="/progress">📈 Progress</a>
+          <a className="chip" href="/archive">📖 Archive</a>
+        </div>
         <p className="dim" style={{ marginTop: 14 }}>See you tomorrow. Showing up is the whole ballgame.</p>
       </div>
     );

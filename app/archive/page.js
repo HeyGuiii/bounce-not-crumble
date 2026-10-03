@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TEST_ITEMS } from "../../lib/tests.js";
 
 const fmtDate = (iso) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", {
@@ -20,20 +21,21 @@ function setSummary(ex) {
   return ex.sets.map((r) => r).join(" · ") + ` of ${ex.reps}`;
 }
 
+const SIDE_WORD = { solid: "solid", off: "a little off", weak: "weak" };
+
 export default function Archive() {
   const [data, setData] = useState(null);
   const [open, setOpen] = useState(null);
 
   useEffect(() => {
     fetch("/api/history")
-      .then((r) => (r.ok ? r.json() : { sessions: [] }))
+      .then((r) => (r.ok ? r.json() : { sessions: [], activityLog: [] }))
       .then(setData);
   }, []);
 
   if (!data) return <div className="app"><div className="spin">Loading the book…</div></div>;
 
   const totalSessions = data.sessions.length;
-  const streakDates = new Set(data.sessions.map((s) => s.date));
 
   return (
     <div className="app">
@@ -56,17 +58,27 @@ export default function Archive() {
             style={{ cursor: "pointer" }}
           >
             <span className="ex-name" style={{ fontSize: 16 }}>
-              {fmtDate(s.date)} — {s.dayType === "packed" ? "Packed" : "Full"}
+              {fmtDate(s.date)} — {s.dayType === "packed" ? "Packed" : s.dayType === "test" ? "Test day" : "Full"}
               {s.meatware ? " 🥩" : ""}
               {s.flexibility ? " +mobility" : ""}
+              {s.block?.key ? ` · ${s.block.key}` : ""}
             </span>
             <span className="ex-dose">
-              {s.completion}%{fmtDuration(s.durationSec) ? ` · ${fmtDuration(s.durationSec)}` : ""} · knee {s.knee}
+              {s.dayType === "test" ? "" : `${s.completion}%`}
+              {fmtDuration(s.durationSec) ? ` · ${fmtDuration(s.durationSec)}` : ""}
+              {s.knee != null ? ` · knee ${s.knee}` : ""}
             </span>
           </div>
 
           {open === s.id && (
             <div style={{ marginTop: 10 }}>
+              {s.test &&
+                TEST_ITEMS.filter((t) => s.test[t.id] != null).map((t) => (
+                  <div className="ex-head" key={t.id}>
+                    <span style={{ fontSize: 14 }}>{t.label}</span>
+                    <span className="ex-dose">{s.test[t.id]} {t.unit}</span>
+                  </div>
+                ))}
               {(s.exercises || []).map((ex) => (
                 <div key={ex.id} style={{ marginBottom: 8 }}>
                   <div className="ex-head">
@@ -77,6 +89,11 @@ export default function Archive() {
                       {s.reasons?.[ex.id] ? ` · stopped: ${s.reasons[ex.id].replace("_", " ")}` : ""}
                     </span>
                   </div>
+                  {s.sides?.[ex.id] && (
+                    <div className="changed">
+                      ⇆ L {SIDE_WORD[s.sides[ex.id].left] || "—"} · R {SIDE_WORD[s.sides[ex.id].right] || "—"}
+                    </div>
+                  )}
                   {ex.note && <div className="changed">✎ {ex.note}</div>}
                 </div>
               ))}
@@ -95,7 +112,24 @@ export default function Archive() {
         </div>
       ))}
 
-      <a className="chip" href="/">← Back to today</a>
+      {data.activityLog.length > 0 && (
+        <div className="card">
+          <div className="card-label">Runs and tennis</div>
+          {data.activityLog.slice(0, 30).map((a, i) => (
+            <div className="ex-head" key={i}>
+              <span style={{ fontSize: 14 }}>{fmtDate(a.date)} — {a.kind === "run" ? "🏃 Run" : "🎾 Tennis"}{a.stage ? ` · stage ${a.stage}` : ""}</span>
+              <span className="ex-dose">
+                {[a.miles ? `${a.miles} mi` : null, a.minutes ? `${a.minutes} min` : null, a.kneeAfter ? `knee ${a.kneeAfter}` : null].filter(Boolean).join(" · ")}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="chips">
+        <a className="chip" href="/">← Today</a>
+        <a className="chip" href="/progress">📈 Progress</a>
+      </div>
     </div>
   );
 }

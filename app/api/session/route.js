@@ -2,16 +2,33 @@ import crypto from "crypto";
 import { getState, setState, saveSession, getSessions } from "../../../lib/store.js";
 import { runBrain } from "../../../lib/brain.js";
 import { byId } from "../../../lib/library.js";
+import { snapLoad } from "../../../lib/inventory.js";
+import { migrateState } from "../../../lib/migrate.js";
+import { ensureBlock } from "../../../lib/blocks.js";
 import { isAuthed, unauthorized } from "../../../lib/auth.js";
 import { localDate } from "../../../lib/dates.js";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // brain call can take a while
 
+const SIDE_VALUES = new Set(["solid", "off", "weak"]);
+
 export async function POST(request) {
   if (!(await isAuthed())) return unauthorized();
 
   const body = await request.json();
+
+  // Per-side ratings (phase 2): { movementId: { left, right } }, each
+  // solid | off | weak. Anything else is dropped.
+  const sides = {};
+  for (const [id, v] of Object.entries(body.sides || {})) {
+    if (!v || typeof v !== "object") continue;
+    const clean = {};
+    if (SIDE_VALUES.has(v.left)) clean.left = v.left;
+    if (SIDE_VALUES.has(v.right)) clean.right = v.right;
+    if (Object.keys(clean).length) sides[id] = clean;
+  }
+
   const session = {
     id: crypto.randomUUID(),
     date: localDate(),
@@ -19,12 +36,14 @@ export async function POST(request) {
     dayType: body.dayType,
     flexibility: !!body.flexibility,
     meatware: !!body.meatware,
+    block: body.block || null,
     startedAt: body.startedAt || null,
     durationSec: body.durationSec || null,
     exercises: body.exercises, // [{id, name, sets: [repsDone...], reps, weight, note?}]
     completion: body.completion, // 0-100 across all sets
     knee: body.knee, // 1-10
     reasons: body.reasons || {}, // movementId -> knee|time|too_hard
+    sides,
     dump: body.dump || "",
   };
 
@@ -32,6 +51,8 @@ export async function POST(request) {
   await saveSession(session);
 
   const state = await getState();
+  migrateState(state);
+  ensureBlock(state, session.date);
   const recentSessions = await getSessions(30);
 
   let brainResult = null;
@@ -42,13 +63,18 @@ export async function POST(request) {
   }
 
   if (brainResult) {
-    // Dose changes: the brain's free authority — but only for known movements.
+    // Dose changes: the brain's free authority — but only for known movements,
+    // and every weight snapped to something Eddie can actually build.
+    const snaps = [];
     for (const change of brainResult.doseChanges || []) {
-      if (!byId[change.movementId]) continue;
+      const m = byId[change.movementId];
+      if (!m) continue;
+      const s = snapLoad(m.loadMode, change.weight);
+      if (s.snapped) snaps.push(`${m.name}: asked ${change.weight}, set ${s.weight ?? "bodyweight"}`);
       state.progress[change.movementId] = {
         reps: change.reps,
         sets: change.sets,
-        weight: change.weight,
+        weight: s.weight,
       };
     }
     if (brainResult.nextPlan) {
@@ -60,7 +86,9 @@ export async function POST(request) {
           : null,
       };
     }
-    state.lastChanged = brainResult.changed || null;
+    state.lastChanged = [brainResult.changed || "", ...(snaps.length ? [`(snapped to your gear — ${snaps.join("; ")})`] : [])]
+      .filter(Boolean)
+      .join(" ") || null;
     state.observations = [
       { date: session.date, text: brainResult.observation },
       ...(state.observations || []),
