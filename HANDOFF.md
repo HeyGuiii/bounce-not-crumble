@@ -1,23 +1,46 @@
-# Make this yours
+# Make this yours — step by step
 
-This app was built for one person, Eddie, through a conversation with Claude: what his body needed, what he loves and hates, what gear he owns, how much time he really has. The code you are holding is the result of that conversation. It is not a template. The brain's instructions name his age, his knee, his dumbbells, his goals.
+This app was built for one person, Eddie, through a conversation with Claude about what his body needed, what he loves and hates, what gear he owns, and how much time he really has. The code you are holding is the result of that conversation. It is not a template. The brain's instructions name his age, his knee, his dumbbells, his goals.
 
-The point of giving it to you is not the code. It is the conversation. Have the same one.
+The point of giving it to you is not the code. It is the conversation. These steps get you to that conversation and then get the result onto your phone. Budget about two hours the first time. Nothing here needs you to write code.
 
-## What you need
+## Before you start
 
-- Claude Code (you have it)
-- A GitHub account (you have it)
-- A Vercel account (you have it)
-- An Anthropic API key for the brain: https://platform.claude.com. The brain reads every workout you log and adjusts the next one. Without the key the app still serves workouts and saves sessions, it just doesn't learn. Cost for one person is a few cents a day.
+You need four accounts or tools. You said you have the first three.
 
-## Step one: get the code
+1. **GitHub** (github.com). Where the code lives.
+2. **Vercel** (vercel.com). Where the app runs. The free plan is enough.
+3. **Claude Code** on your computer. This is the tool that interviews you and rebuilds the app. If `claude` does not run in your terminal yet, install it from https://claude.com/claude-code.
+4. **An Anthropic API key** for the brain. Go to https://platform.claude.com, sign in, API Keys, Create Key, name it "bounce", copy it somewhere safe. The brain reads every workout you log and adjusts the next one. Cost for one person is a few cents a day. Without the key the app still works, it just does not learn.
 
-Fork this repo on GitHub, or download it as a zip. Open the folder in Claude Code.
+You also need Node.js on your computer. Open a terminal and type `node -v`. If you see a version 20 or higher, you are fine. If not, install it from https://nodejs.org (the LTS button).
 
-## Step two: have the conversation
+## Part 1: get the code onto your computer
 
-Paste this as your first message in Claude Code, then answer honestly. The questions are the product.
+1. Open the email from GitHub inviting you to `HeyGuiii/bounce-not-crumble` and accept it.
+2. Open https://github.com/HeyGuiii/bounce-not-crumble in your browser.
+3. Click **Fork** (top right), then **Create fork**. You now have your own copy at `github.com/YOUR-USERNAME/bounce-not-crumble`.
+4. Open a terminal (Terminal on Mac, PowerShell on Windows) and run these three lines, replacing YOUR-USERNAME:
+
+```
+git clone https://github.com/YOUR-USERNAME/bounce-not-crumble.git
+cd bounce-not-crumble
+npm install
+```
+
+5. Create the key file. Copy `.env.local.example` to a new file named `.env.local` in the same folder, open it in any text editor, and paste your API key after `ANTHROPIC_API_KEY=`. Save. This file never leaves your computer.
+
+## Part 2: the conversation
+
+This is the whole point. Do not rush it.
+
+6. In the same terminal, still inside the folder, run:
+
+```
+claude
+```
+
+7. Paste this as your first message, then answer every question honestly. One topic at a time is fine. If a question does not apply, say so.
 
 ```
 This app was built for someone else (Eddie). Read CLAUDE.md, SPEC.md, BUILD_LOG.md,
@@ -35,27 +58,64 @@ When you have what you need, rebuild the app for me: rewrite the brain's
 instructions, replace his inventory with mine, replace his protected-joint rules
 with mine, pick the movement library and blocks that fit me, and strip every
 reference to him. Keep the daily-serve loop, the reflect screen, the brain, the
-progress page. Then wipe the sample data, verify it works locally, and tell me
-exactly what to do in Vercel to deploy it.
+progress page. Then wipe the sample data, verify it works locally, and show it
+to me running on my computer before we deploy.
 ```
 
-That conversation takes about an hour. Do not skip the questions to get to the app faster. The app is only as good as the answers.
+8. When it says the app is running locally, open http://localhost:3000 in your browser. Look at workout one. If anything is wrong, say so in the same conversation. It will fix it. Keep going until workout one looks like something you would actually do tomorrow.
 
-## Step three: deploy
+## Part 3: put it on your phone
 
-Claude Code will walk you through it, but the shape is:
+You can do this yourself with the steps below, or paste the next message into the same Claude Code conversation and let it drive:
 
-1. `vercel link` in the project folder, create a new project.
-2. In the Vercel dashboard, Storage, create a Blob store and connect it to the project. That adds `BLOB_READ_WRITE_TOKEN` automatically.
-3. Add `ANTHROPIC_API_KEY` under Settings, Environment Variables.
-4. `vercel --prod`.
-5. Open the link on your phone, add it to the home screen. Do workout one.
+```
+Now deploy this to Vercel for me. Walk me through each step, one at a time,
+and tell me exactly what to click or type.
+```
 
-The deployed app has no login unless you set `APP_PASSPHRASE`. Eddie chose not to. Decide for yourself; it is your health data.
+If you would rather do it by hand:
 
-## What to keep in mind
+9. Install the Vercel tool and sign in:
 
-- Rules generate the workouts. The brain only reads and adjusts. Keep that split; it is what keeps the app safe when the brain has a bad day.
-- Daily, even twenty minutes. The brain decides the dose. Showing up is yours.
-- The post-workout reflect screen is the product. Rate the joint honestly. Write the note. That is what the brain learns from.
-- Change it whenever you want. Open Claude Code, say what is wrong, and it will be fixed by the next workout. That is how Eddie's got to where it is: feedback after workout one, feedback after workout five, a full review after forty-seven.
+```
+npm install -g vercel
+vercel login
+```
+
+10. Link the folder to a new Vercel project. Accept the defaults when it asks:
+
+```
+vercel link
+```
+
+11. In your browser, go to https://vercel.com, open the new project, click **Storage**, **Create Database**, choose **Blob**, and connect it to the project. This is where your workouts are saved. It adds the connection automatically.
+12. Still in the project, click **Settings**, **Environment Variables**. Add one named `ANTHROPIC_API_KEY` with your key as the value. Save.
+13. Back in the terminal:
+
+```
+vercel --prod
+```
+
+It prints a link ending in `.vercel.app`. That is your app.
+
+14. Open the link on your phone. In Safari, tap Share, then **Add to Home Screen**. In Chrome on Android, tap the menu, then **Add to Home screen**. It now opens like an app.
+15. Save your work so it is not only on your computer:
+
+```
+git add -A
+git commit -m "made it mine"
+git push
+```
+
+The deployed app has no login unless you set a variable named `APP_PASSPHRASE` in Vercel. Eddie chose not to. It is your health data; decide for yourself.
+
+## Part 4: living with it
+
+- **Daily.** Even twenty minutes. The brain decides the dose. Showing up is your job.
+- **The reflect screen is the product.** Rate the joint honestly after every workout. Write the note. That is what the brain learns from.
+- **Rules make the workouts, the brain only adjusts them.** Keep that split. It is what keeps the app safe on a day the brain is wrong.
+- **To change anything,** open the terminal in the folder, run `claude`, and say what is wrong. It will be fixed before your next workout, then `git add -A`, `git commit -m "..."`, `git push`, and `vercel --prod`. That is how Eddie's got to where it is: feedback after workout one, feedback after workout five, a full review after forty-seven.
+
+## If you get stuck
+
+Paste the error into the same Claude Code conversation and say "I got this, what do I do." It will know. If it is truly stuck, text Eddie.
