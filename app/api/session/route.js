@@ -6,7 +6,7 @@ import { snapLoad } from "../../../lib/inventory.js";
 import { migrateState } from "../../../lib/migrate.js";
 import { ensureBlock } from "../../../lib/blocks.js";
 import { isAuthed, unauthorized } from "../../../lib/auth.js";
-import { localDate } from "../../../lib/dates.js";
+import { localDate, yesterdayDate, isIsoDate } from "../../../lib/dates.js";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // brain call can take a while
@@ -31,7 +31,8 @@ export async function POST(request) {
 
   const session = {
     id: crypto.randomUUID(),
-    date: localDate(),
+    // "yesterday" = he did it yesterday and is logging it late (reflect toggle).
+    date: body.logDate === "yesterday" ? yesterdayDate() : localDate(),
     finishedAt: new Date().toISOString(),
     dayType: body.dayType,
     flexibility: !!body.flexibility,
@@ -122,4 +123,26 @@ export async function POST(request) {
     changed: state.lastChanged,
     proposals: (state.proposals || []).filter((p) => p.status === "pending"),
   });
+}
+
+// Move a session to a different calendar day (and optionally clear a bogus
+// duration). Used when a workout was logged late without the toggle. The
+// brain observation written for it moves with it.
+export async function PATCH(request) {
+  if (!(await isAuthed())) return unauthorized();
+  const { id, date, clearDuration } = await request.json();
+  if (!id || !isIsoDate(date)) return Response.json({ error: "bad request" }, { status: 400 });
+  const sessions = await getSessions(365);
+  const session = sessions.find((s) => s.id === id);
+  if (!session) return Response.json({ error: "not found" }, { status: 404 });
+  const from = session.date;
+  session.date = date;
+  session.movedFrom = from;
+  if (clearDuration) session.durationSec = null;
+  await saveSession(session);
+  const state = await getState();
+  const obs = (state.observations || []).find((o) => o.date === from);
+  if (obs && !(state.observations || []).some((o) => o.date === date)) obs.date = date;
+  await setState(state);
+  return Response.json({ ok: true, session: { id, from, to: date } });
 }

@@ -30,6 +30,7 @@ export default function App() {
   const [reasons, setReasons] = useState({});
   const [sides, setSides] = useState({}); // movementId -> { left, right }
   const [dump, setDump] = useState("");
+  const [yesterday, setYesterday] = useState(false); // log this session as yesterday's
   const [result, setResult] = useState(null);
   const [chipFlash, setChipFlash] = useState(null);
   const [elapsed, setElapsed] = useState(0);
@@ -59,10 +60,67 @@ export default function App() {
     setPhase("serve");
   }, []);
 
+  // ── Draft persistence: a workout in progress survives the phone dying,
+  // the PWA being killed, or an app switch. Saved to localStorage on every
+  // change while working or reflecting; restored on load if it's from today.
+  const DRAFT_KEY = "bnc_draft";
+  const restoredRef = useRef(false);
+  const localDay = () => new Date().toLocaleDateString("en-CA");
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+  }
+
+  useEffect(() => {
+    if (phase !== "work" && phase !== "reflect") return;
+    try {
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          day: localDay(), phase, work, dayType, flex, mw, knee, reasons, sides, dump, yesterday,
+          startedAt: startRef.current, plan: data?.plan || null,
+        })
+      );
+    } catch {}
+  }, [phase, work, dayType, flex, mw, knee, reasons, sides, dump, yesterday, data]);
+
   useEffect(() => {
     loadToday();
     return () => clearInterval(timerRef.current);
   }, [loadToday]);
+
+  // After today's plan loads, offer to resume a same-day draft.
+  useEffect(() => {
+    if (phase !== "serve" || restoredRef.current) return;
+    restoredRef.current = true;
+    let draft = null;
+    try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch {}
+    if (!draft || draft.day !== localDay() || !Array.isArray(draft.work) || !draft.work.length) {
+      if (draft) clearDraft();
+      return;
+    }
+    const doneSets = draft.work.reduce((a, ex) => a + (ex.done || []).filter((n) => n > 0).length, 0);
+    if (!doneSets) { clearDraft(); return; }
+    const resume = window.confirm(
+      `You have an unfinished workout from earlier today (${doneSets} sets logged). Pick it back up?`
+    );
+    if (!resume) { clearDraft(); return; }
+    setWork(draft.work);
+    setDayType(draft.dayType || dayType);
+    setFlex(!!draft.flex);
+    setMw(!!draft.mw);
+    setKnee(draft.knee ?? null);
+    setReasons(draft.reasons || {});
+    setSides(draft.sides || {});
+    setDump(draft.dump || "");
+    setYesterday(!!draft.yesterday);
+    if (draft.plan) setData((d) => ({ ...d, plan: draft.plan }));
+    startRef.current = draft.startedAt || Date.now();
+    setElapsed(Math.round((Date.now() - startRef.current) / 1000));
+    if (draft.phase === "reflect") setPhase("reflect");
+    else { startTimer(); setPhase("work"); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   async function submitPass(e) {
     e.preventDefault();
@@ -189,9 +247,11 @@ export default function App() {
         reasons,
         sides,
         dump,
+        logDate: yesterday ? "yesterday" : undefined,
       }),
     });
     const payload = await res.json();
+    clearDraft();
     setResult(payload);
     setPhase("done");
   }
@@ -211,6 +271,7 @@ export default function App() {
       }),
     });
     const payload = await res.json();
+    clearDraft();
     setTestResult(payload);
     setPhase("testdone");
   }
@@ -603,6 +664,15 @@ export default function App() {
             placeholder="How it felt, what was weird, what was great…"
           />
         </div>
+
+        <button
+          className={`toggle ${yesterday ? "on" : ""}`}
+          style={{ width: "100%", marginBottom: 12 }}
+          onClick={() => setYesterday(!yesterday)}
+        >
+          {yesterday ? "Logging as yesterday's workout" : "This was yesterday's workout"}
+          <small>{yesterday ? "tap to switch back to today" : "didn't get to log it? tap and it files under yesterday"}</small>
+        </button>
 
         <button className="btn" disabled={knee === null} onClick={saveSession}>
           Save session
