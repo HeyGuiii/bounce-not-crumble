@@ -61,3 +61,11 @@ Oura/Pulse meshing (explicitly deferred) · baseline battery (revisit after two 
 | Continuous sets | Parked until Apple Watch Ultra 4 (~2026-10-09) gives heart-rate data | 2026-10-02 |
 | Charts | /progress: per-movement load + top-set lines with jump markers, knee, duration, tests, L/R | 2026-10-02 |
 | Mobility | No separate days, no warm-up (Eddie). Toggle kept | 2026-10-02 |
+
+## Phase 3 (Eddie, 2026-10-31)
+
+| Decision | Call | Made |
+|---|---|---|
+| Secondary goal | **Core replaces glutes.** Core = a trunk that resists and produces force: anti-rotation, anti-extension, rotation (tennis), anti-lateral, loaded flexion. One core movement every full day (slot 6), rotating through the five jobs across the week; progressed like a main lift (time → reps → ruck). Glute mandate retired; glute movements stay in the library; single-leg hip thrust / bridge / Bulgarian / Patrick step stay as KNEE work for the surgical side | 2026-10-31 |
+| Plyo placement | On plyo days the bounce work takes the carry slot (a carry is loaded core), so core still runs daily | 2026-10-31 |
+| Library | +10 core movements with `coreFocus` tags: hollow hold, Copenhagen plank, Pallof hold walk-out, bear hold shoulder taps, half-kneeling band chop, standing band rotation, weighted sit-up (ruck), reverse crunch, L-sit on two chairs; dead bug and plank take the ruck | 2026-10-31 |

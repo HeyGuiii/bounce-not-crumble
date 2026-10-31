@@ -229,7 +229,31 @@ export default function App() {
 
   async function saveSession() {
     setPhase("saving");
-    const res = await fetch("/api/session", {
+    // Clear the draft BEFORE the request: the brain can take 30s, and a
+    // refresh during that wait used to resurrect the draft and double-save
+    // (10-23 had two copies). If the save fails we drop back to reflect,
+    // which re-persists the draft.
+    clearDraft();
+    let res;
+    try {
+      res = await fetchSession();
+    } catch {
+      setPhase("reflect");
+      alert("Couldn't reach the server — nothing lost, tap Save again.");
+      return;
+    }
+    if (!res.ok) {
+      setPhase("reflect");
+      alert("Save failed — nothing lost, tap Save again.");
+      return;
+    }
+    const payload = await res.json();
+    setResult(payload);
+    setPhase("done");
+  }
+
+  function fetchSession() {
+    return fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -250,10 +274,6 @@ export default function App() {
         logDate: yesterday ? "yesterday" : undefined,
       }),
     });
-    const payload = await res.json();
-    clearDraft();
-    setResult(payload);
-    setPhase("done");
   }
 
   async function saveTest() {

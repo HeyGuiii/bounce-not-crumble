@@ -20,6 +20,10 @@ Every day the workout comes to Eddie, with near-zero decisions asked of him. Inj
 
 Blocks rotate every 17 days (A Load, B Single-leg & spring, C Tempo & range) over a fixed 7-slot skeleton with a daily ATG knee slot; plyos only in B/C; nothing high-knee the day after a logged run; one high-knee movement per session. Running is a staged walk-run track, test day is monthly, left/right ratings are optional on reflect, `/progress` holds the charts. Honest container: full ≈ 25 min. Decisions in SPEC.md, story in BUILD_LOG.md.
 
+## Phase 3 (2026-10-31)
+
+Secondary goal is CORE, not glutes: one core movement every full day, rotating through five trunk jobs (`coreFocus`). Glute mandate retired; single-leg hip work stays as knee work. See SPEC.md Phase 3.
+
 ## Signal design
 
 Completion% per exercise + post-workout knee (1-10) are jointly diagnostic:

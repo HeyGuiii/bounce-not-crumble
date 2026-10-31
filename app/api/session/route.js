@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { getState, setState, saveSession, getSessions } from "../../../lib/store.js";
+import { getState, setState, saveSession, getSessions, deleteSession } from "../../../lib/store.js";
 import { runBrain } from "../../../lib/brain.js";
 import { byId } from "../../../lib/library.js";
 import { snapLoad } from "../../../lib/inventory.js";
@@ -145,4 +145,13 @@ export async function PATCH(request) {
   if (obs && !(state.observations || []).some((o) => o.date === date)) obs.date = date;
   await setState(state);
   return Response.json({ ok: true, session: { id, from, to: date } });
+}
+
+// Remove a duplicate save (two identical sessions on one day).
+export async function DELETE(request) {
+  if (!(await isAuthed())) return unauthorized();
+  const { id } = await request.json();
+  if (!id) return Response.json({ error: "bad request" }, { status: 400 });
+  const ok = await deleteSession(id);
+  return Response.json({ ok }, { status: ok ? 200 : 404 });
 }
