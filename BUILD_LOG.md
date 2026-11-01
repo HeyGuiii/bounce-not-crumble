@@ -43,3 +43,6 @@
 ## 2026-10-31
 - Eddie: "focus on core rather than glutes now." Data check first: block B day 13, last 10 sessions had glute-tagged movements 15× vs core 7×, same four glute movements cycling; sessions shrinking (10-17 min) with three missed days in eleven; still no test day; two runs logged at stage 1 (knee 9 both). Duplicate save on 10-23 (two identical sessions) removed via new DELETE /api/session.
 - Built under one stated assumption (core = force-resisting + rotational trunk for tennis and falls, not abs): engine slot 6 is now core DAILY, rotating coreFocus antiRotation → antiExtension → rotation → antiLateral → flexion; plyo days displace the carry, not the core; brain plans must carry both ATG and core (replace-at-cap). Library +10 core movements, coreFocus on all. Brain prompt: glute mandate replaced by the core mandate; glute-med fillers discouraged unless knee data asks; single-leg hip work kept as knee work. Goal order now knee > muscle > core > longevity > conditioning > tennis.
+
+## 2026-11-01
+- Eddie: "this is where we can incorporate kettlebells more (25 and 35)." Added `kb` load mode (bell only), kb_swing in the hinge rotation for blocks A and C, six kettlebell core/push movements with coreFocus tags and meatware subs, brain told to favor a bell in the core slot 3 days a week and progress 25 → 35 after two clean sessions.
